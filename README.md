@@ -1,16 +1,15 @@
-# 多链钱包适配器
+# 多链钱包适配器 (Multi-Chain Wallet Adapter)
 
-一个支持多链（Solana、EVM、Tron）的钱包适配器库，可以轻松集成到你的 dApp 中。
+一个用于 WebView 环境的多链钱包适配器，支持 EVM、Solana 和 TRON 链的 DApp 交互。该适配器设计用于移动端 App 的 WebView 环境，可以替代浏览器插件钱包（如 MetaMask、Phantom、TronLink）。
 
-## 功能特点
+## 特性
 
-- 支持多条区块链网络（Solana、EVM、Tron）
-- 简单易用的 React 集成方案
-- 现代化的钱包连接界面
-- 支持交易签名和发送
-- 余额查询
-- 链切换
+- 支持多链：EVM、Solana、TRON
+- 兼容主流钱包接口
+- 适用于 WebView 环境
 - 统一的 API 接口
+- 完整的事件系统
+- 类型安全
 
 ## 安装
 
@@ -22,131 +21,303 @@ yarn add multi-chain-wallet-adapter
 
 ## 快速开始
 
-### 基础用法
+### 基础使用
 
-```jsx
-import Wallet from 'multi-chain-wallet-adapter';
+```javascript
+import { WalletAdapter } from 'multi-chain-wallet-adapter';
 
 // 创建钱包实例
-const wallet = new Wallet({
-  chainId: 'mainnet-beta',  // 链 ID
-  chainType: 'SOLANA',      // 链类型：'SOLANA' | 'EVM' | 'TRON'
-  rpcUrl: 'https://api.mainnet-beta.solana.com'  // RPC 地址
+const wallet = WalletAdapter.createWallet({
+  chainType: 'EVM',  // 'EVM' | 'SOLANA' | 'TRON'
+  chainId: '1',      // 链 ID
+  rpcUrl: 'https://mainnet.infura.io/v3/YOUR-PROJECT-ID'  // RPC 地址
 });
 
 // 连接钱包
-await wallet.connect();
-
-// 获取余额
-const balance = await wallet.getBalance();
+try {
+  const address = await wallet.connect();
+  console.log('Connected:', address);
+} catch (error) {
+  console.error('Connection failed:', error);
+}
 
 // 发送交易
-const signature = await wallet.signAndSendTransaction({
-  to: '接收地址',
-  lamports: 1000000  // 转账金额（注意不同链的精度不同）
-});
-```
-
-### React 集成示例
-
-```jsx
-import { WalletProvider, useWallet } from 'multi-chain-wallet-adapter';
-
-function App() {
-  return (
-    <WalletProvider>
-      <YourApp />
-    </WalletProvider>
-  );
+try {
+  const txHash = await wallet.signAndSendTransaction({
+    to: '0x...',
+    value: '0.1'
+  });
+  console.log('Transaction sent:', txHash);
+} catch (error) {
+  console.error('Transaction failed:', error);
 }
 ```
 
-## 测试方法
+### 链特定使用
 
-### 1. 本地开发测试
+#### EVM 链
 
-1. 克隆仓库：
-```bash
-git clone https://github.com/your-username/multi-chain-wallet-adapter.git
-cd multi-chain-wallet-adapter
-```
-
-2. 安装依赖：
-```bash
-yarn install
-cd example
-yarn install
-```
-
-3. 启动示例项目：
-```bash
-yarn start
-```
-访问 http://localhost:3000 查看示例
-
-### 2. 在现有 dApp 中测试
-
-1. 构建库：
-```bash
-yarn build
-```
-
-2. 在目标 dApp 中安装：
-```bash
-# 在目标项目目录下
-yarn add file:../path/to/multi-chain-wallet-adapter
-```
-
-3. 在 dApp 中集成：
-```jsx
-import Wallet from 'multi-chain-wallet-adapter';
-
-// 创建钱包实例
-const wallet = new Wallet({
-  chainType: 'SOLANA',  // 或 'EVM' 或 'TRON'
-  chainId: 'mainnet-beta',
-  rpcUrl: '你的 RPC 地址'
+```javascript
+// 创建 EVM 钱包
+const evmWallet = WalletAdapter.createWallet({
+  chainType: 'EVM',
+  chainId: '1',  // Ethereum Mainnet
+  rpcUrl: 'https://mainnet.infura.io/v3/YOUR-PROJECT-ID'
 });
 
-// 测试连接
+// 请求账户
+const accounts = await evmWallet.request({
+  method: 'eth_requestAccounts'
+});
+
+// 签名消息
+const signature = await evmWallet.signMessage('Hello, Web3!');
+
+// 发送交易
+const txHash = await evmWallet.signAndSendTransaction({
+  to: '0x...',
+  value: '0.1',
+  data: '0x...'  // 可选
+});
+```
+
+#### Solana
+
+```javascript
+// 创建 Solana 钱包
+const solanaWallet = WalletAdapter.createWallet({
+  chainType: 'SOLANA',
+  chainId: 'mainnet-beta',
+  rpcUrl: 'https://api.mainnet-beta.solana.com'
+});
+
+// 连接钱包
+const publicKey = await solanaWallet.connect();
+
+// 签名消息
+const { signature } = await solanaWallet.signMessage('Hello, Solana!');
+
+// 发送交易
+const { signature: txSignature } = await solanaWallet.signAndSendTransaction({
+  to: '...',
+  value: 0.1  // SOL
+});
+```
+
+#### TRON
+
+```javascript
+// 创建 TRON 钱包
+const tronWallet = WalletAdapter.createWallet({
+  chainType: 'TRON',
+  chainId: '1',  // Mainnet
+  rpcUrl: 'https://api.trongrid.io'
+});
+
+// 连接钱包
+const address = await tronWallet.connect();
+
+// 签名消息
+const signature = await tronWallet.signMessage('Hello, TRON!');
+
+// 发送交易
+const txHash = await tronWallet.signAndSendTransaction({
+  to: 'T...',
+  value: 100  // TRX
+});
+```
+
+## API 文档
+
+### WalletAdapter
+
+主适配器类，提供统一的钱包接口。
+
+#### 静态方法
+
+##### `createWallet(config: WalletConfig): Wallet`
+
+创建钱包实例。
+
+```typescript
+interface WalletConfig {
+  chainType: 'EVM' | 'SOLANA' | 'TRON';
+  chainId: string;
+  rpcUrl: string;
+}
+```
+
+#### 实例方法
+
+##### `connect(): Promise<string>`
+
+连接钱包，返回账户地址。
+
+##### `disconnect(): Promise<void>`
+
+断开钱包连接。
+
+##### `request({ method: string, params: any[] }): Promise<any>`
+
+发送 RPC 请求。
+
+##### `signMessage(message: string): Promise<string>`
+
+签名消息。
+
+##### `signTransaction(transaction: any): Promise<any>`
+
+签名交易。
+
+##### `signAndSendTransaction(params: TransactionParams): Promise<string>`
+
+签名并发送交易。
+
+```typescript
+interface TransactionParams {
+  to: string;
+  value: string | number;
+  data?: string;  // 仅 EVM
+}
+```
+
+#### 属性
+
+##### `publicKey: string`
+
+当前连接的账户地址。
+
+##### `connected: boolean`
+
+钱包连接状态。
+
+### 事件
+
+所有钱包实例都支持以下事件：
+
+```javascript
+wallet.on('connect', (address) => {
+  console.log('Connected:', address);
+});
+
+wallet.on('disconnect', () => {
+  console.log('Disconnected');
+});
+
+wallet.on('chainChanged', (chainId) => {
+  console.log('Chain changed:', chainId);
+});
+
+wallet.on('accountsChanged', (accounts) => {
+  console.log('Accounts changed:', accounts);
+});
+```
+
+## 原生端集成
+
+### Android
+
+```kotlin
+// 注入桥接对象
+webView.addJavascriptInterface(object {
+    @JavascriptInterface
+    fun postMessage(message: String): String {
+        // 处理钱包请求
+        return handleWalletRequest(message)
+    }
+}, "_tw_")
+```
+
+### iOS
+
+```swift
+// 注入桥接对象
+webView.configuration.userContentController.add(self, name: "_tw_")
+
+// 处理消息
+func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+    if message.name == "_tw_" {
+        // 处理钱包请求
+        handleWalletRequest(message.body as! String)
+    }
+}
+```
+
+## 错误处理
+
+所有方法都会抛出错误，建议使用 try-catch 进行错误处理：
+
+```javascript
 try {
   await wallet.connect();
-  console.log('钱包地址:', wallet.publicKey);
-  const balance = await wallet.getBalance();
-  console.log('钱包余额:', balance);
 } catch (error) {
-  console.error('连接失败:', error);
+  if (error.message.includes('User rejected')) {
+    // 用户拒绝连接
+  } else if (error.message.includes('Android interface not found')) {
+    // 未在 WebView 环境中
+  } else {
+    // 其他错误
+  }
 }
 ```
 
-### 3. 浏览器扩展要求
+## 最佳实践
 
-- Solana 链：需要安装 [Phantom 钱包](https://phantom.app/)
-- EVM 链：需要安装 [MetaMask](https://metamask.io/)
-- Tron 链：需要安装 [TronLink](https://www.tronlink.org/)
+1. **环境检测**
+```javascript
+if (window._tw_) {
+  // 使用钱包适配器
+  const wallet = new WalletAdapter({...});
+} else if (window.ethereum) {
+  // 降级到 MetaMask
+} else if (window.solana) {
+  // 降级到 Phantom
+}
+```
 
-## 注意事项
+2. **错误处理**
+```javascript
+async function handleTransaction(wallet, params) {
+  try {
+    const txHash = await wallet.signAndSendTransaction(params);
+    return { success: true, txHash };
+  } catch (error) {
+    if (error.message.includes('User rejected')) {
+      return { success: false, error: '用户拒绝交易' };
+    }
+    return { success: false, error: error.message };
+  }
+}
+```
 
-1. 不同链的精度不同：
-   - Solana: 1 SOL = 1e9 lamports
-   - EVM: 1 ETH = 1e18 wei
-   - Tron: 1 TRX = 1e6 sun
+3. **事件监听**
+```javascript
+function setupWalletListeners(wallet) {
+  wallet.on('connect', (address) => {
+    updateUI({ connected: true, address });
+  });
+  
+  wallet.on('disconnect', () => {
+    updateUI({ connected: false, address: null });
+  });
+  
+  wallet.on('chainChanged', (chainId) => {
+    updateUI({ chainId });
+  });
+}
+```
 
-2. 交易参数：
-   - `lamports` 参数在不同链中代表不同单位
-   - 发送交易时需要注意金额单位的转换
+## 示例项目
 
-3. 错误处理：
-   - 所有方法都会返回 Promise
-   - 建议使用 try/catch 处理可能的错误
+查看 `examples` 目录获取完整的示例项目：
 
-## 开发计划
+- `examples/evm-dapp`: EVM 链 DApp 示例
+- `examples/solana-dapp`: Solana DApp 示例
+- `examples/tron-dapp`: TRON DApp 示例
 
-- [ ] 添加更多钱包支持
-- [ ] 支持更多链类型
-- [ ] 添加交易历史查询
-- [ ] 支持代币转账
-- [ ] 添加更多测试用例
+## 贡献
+
+欢迎提交 Issue 和 Pull Request。
 
 ## 许可证
 

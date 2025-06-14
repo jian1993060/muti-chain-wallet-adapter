@@ -1,31 +1,16 @@
 const path = require('path');
-const TerserPlugin = require('terser-webpack-plugin');
 
 module.exports = {
   entry: './src/index.js',
   output: {
+    filename: 'wallet_adapter.js',
     path: path.resolve(__dirname, 'dist'),
-    filename: 'wallet-adapter.min.js',
     library: {
       name: 'WalletAdapter',
       type: 'umd',
       export: 'default'
     },
     globalObject: 'this'
-  },
-  mode: 'production',
-  optimization: {
-    minimize: true,
-    minimizer: [
-      new TerserPlugin({
-        terserOptions: {
-          format: {
-            comments: false,
-          },
-        },
-        extractComments: false,
-      }),
-    ],
   },
   module: {
     rules: [
@@ -35,10 +20,25 @@ module.exports = {
         use: {
           loader: 'babel-loader',
           options: {
-            presets: ['@babel/preset-env']
+            presets: [
+              ['@babel/preset-env', {
+                targets: {
+                  android: '4.4'
+                },
+                useBuiltIns: 'usage',
+                corejs: 3
+              }]
+            ]
           }
         }
       }
     ]
+  },
+  resolve: {
+    extensions: ['.js']
+  },
+  mode: 'production',
+  optimization: {
+    minimize: true
   }
 }; 

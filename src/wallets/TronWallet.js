@@ -1,44 +1,149 @@
 import { BaseWallet } from './BaseWallet';
 
 export class TronWallet extends BaseWallet {
-  constructor({ chainId, rpcUrl }) {
-    super({ chainId, chainType: 'TRON', rpcUrl });
-    this.wallet = window.tronWeb || null;
+  constructor({ chainId, rpcUrl, debug = false }) {
+    super({ chainId, chainType: 'TRON', rpcUrl, debug });
+    this._address = null;
+    this._connected = false;
   }
 
   async connect() {
-    if (!this.wallet) throw new Error('TronLink not found');
-    // TronLink 自动注入，无需 connect
-    return this.wallet.defaultAddress.base58;
+    try {
+      const result = await this._callAndroid('tron_requestAccounts');
+      if (!result || !result.address) {
+        throw new Error('Invalid connect response');
+      }
+
+      this._address = result.address;
+      this._connected = true;
+      this._updateState({
+        connected: true,
+        accounts: [result.address],
+        lastError: null
+      });
+
+      return result.address;
+    } catch (error) {
+      this._updateState({ lastError: error.message });
+      throw error;
+    }
   }
 
   async disconnect() {
-    // TronLink 通常不需要断开
+    this._address = null;
+    this._connected = false;
+    this._updateState({
+      connected: false,
+      accounts: [],
+      lastError: null
+    });
   }
 
   get publicKey() {
-    if (!this.wallet || !this.wallet.defaultAddress) throw new Error('Wallet not connected');
-    return this.wallet.defaultAddress.base58;
+    return this._address;
   }
 
   get connected() {
-    return !!(this.wallet && this.wallet.defaultAddress && this.wallet.defaultAddress.base58);
+    return this._connected;
   }
 
   async getBalance() {
-    if (!this.wallet) throw new Error('TronLink not found');
-    const addr = this.wallet.defaultAddress.base58;
-    const bal = await this.wallet.trx.getBalance(addr);
-    return bal / 1e6; // TRX精度
+    if (!this._address) throw new Error('Wallet not connected');
+    
+    try {
+      const result = await this._callAndroid('tron_getBalance', {
+        address: this._address
+      });
+      return result / 1e6; // TRX精度
+    } catch (error) {
+      this._updateState({ lastError: error.message });
+      throw error;
+    }
   }
 
-  async signTransaction() {
-    throw new Error('signTransaction not implemented for Tron');
+  async signTransaction(transaction) {
+    if (!this._address) throw new Error('Wallet not connected');
+    
+    try {
+      const result = await this._callAndroid('tron_signTransaction', {
+        transaction,
+        address: this._address
+      });
+      return result;
+    } catch (error) {
+      this._updateState({ lastError: error.message });
+      throw error;
+    }
   }
 
-  async signAndSendTransaction({ to, lamports }) {
-    if (!this.wallet) throw new Error('TronLink not found');
-    // lamports 这里按 TRX 1e6 精度
-    return await this.wallet.trx.sendTransaction(to, lamports);
+  async signAndSendTransaction({ to, value }) {
+    if (!this._address) throw new Error('Wallet not connected');
+    
+    try {
+      const result = await this._callAndroid('tron_sendTransaction', {
+        to,
+        value: value * 1e6, // 转换为 TRX 精度
+        from: this._address
+      });
+      return result;
+    } catch (error) {
+      this._updateState({ lastError: error.message });
+      throw error;
+    }
+  }
+
+  async signMessage(message) {
+    if (!this._address) throw new Error('Wallet not connected');
+    if (typeof message !== 'string') {
+      throw new Error('Message must be a string');
+    }
+
+    try {
+      const result = await this._callAndroid('tron_signMessage', {
+        message,
+        address: this._address
+      });
+      return result;
+    } catch (error) {
+      this._updateState({ lastError: error.message });
+      throw error;
+    }
+  }
+
+  async request({ method, params = [] }) {
+    const supportedMethods = [
+      'tron_requestAccounts',
+      'tron_signMessage',
+      'tron_sendTransaction',
+      'tron_getBalance'
+    ];
+
+    if (!supportedMethods.includes(method)) {
+      throw new Error(`Unsupported Tron method: ${method}`);
+    }
+
+    try {
+      const result = await this._callAndroid(method, params);
+      
+      switch (method) {
+        case 'tron_requestAccounts':
+          if (!result || !result.address) {
+            throw new Error('Invalid account response');
+          }
+          this._address = result.address;
+          this._connected = true;
+          this._updateState({
+            connected: true,
+            accounts: [result.address],
+            lastError: null
+          });
+          break;
+      }
+      
+      return result;
+    } catch (error) {
+      this._updateState({ lastError: error.message });
+      throw error;
+    }
   }
 } 
